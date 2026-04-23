@@ -1,4 +1,4 @@
-#####DAY_01
+# DAY_01
 
 
 ## 1. What is Machine Learning?
