@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Study — Flashcards & Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #161618;
+    --surface2: #1e1e22;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.16);
+    --text: #f0ede8;
+    --text-muted: #7a7878;
+    --text-dim: #4a4848;
+    --accent: #c8f55a;
+    --accent-dark: #9ac43a;
+    --accent-glow: rgba(200,245,90,0.15);
+    --red: #ff5e5e;
+    --red-bg: rgba(255,94,94,0.1);
+    --green: #4cde8a;
+    --green-bg: rgba(76,222,138,0.1);
+    --blue: #5ec4ff;
+    --radius: 16px;
+    --radius-sm: 8px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(200,245,90,0.06); top: -150px; right: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(94,196,255,0.05); bottom: -100px; left: -80px; }
+
+  .app { position: relative; z-index: 1; max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* Header */
+  header { margin-bottom: 2.5rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-glow); border: 1px solid rgba(200,245,90,0.25);
+    color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 5px 12px; border-radius: 99px;
+    margin-bottom: 1rem;
+  }
+  .badge span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+  h1 { font-family: 'Instrument Serif', serif; font-size: clamp(2rem, 5vw, 3rem); font-weight: 400; line-height: 1.1; color: var(--text); }
+  h1 em { font-style: italic; color: var(--accent); }
+  .subtitle { font-size: 14px; color: var(--text-muted); margin-top: 0.5rem; font-family: 'DM Mono', monospace; }
+
+  /* Tab bar */
+  .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; margin-bottom: 2rem; }
+  .tab {
+    flex: 1; padding: 10px; border-radius: calc(var(--radius) - 4px);
+    border: none; background: transparent; color: var(--text-muted);
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .tab.active { background: var(--surface2); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+  .tab-icon { font-size: 16px; }
+
+  /* Progress */
+  .progress-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .progress-label { font-size: 12px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .progress-track { width: 100%; height: 3px; background: var(--surface2); border-radius: 99px; margin-bottom: 1.5rem; }
+  .progress-fill { height: 3px; background: var(--accent); border-radius: 99px; transition: width 0.4s cubic-bezier(.4,0,.2,1); }
+
+  /* Flashcard */
+  .fc-scene { perspective: 1200px; height: 260px; margin-bottom: 1.2rem; cursor: pointer; }
+  .fc-inner {
+    width: 100%; height: 100%;
+    position: relative; transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(.4,0,.2,1);
+  }
+  .fc-inner.flipped { transform: rotateY(180deg); }
+  .fc-face {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: var(--radius); border: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem; text-align: center;
+  }
+  .fc-front { background: var(--surface); }
+  .fc-back { transform: rotateY(180deg); background: var(--surface2); border-color: rgba(200,245,90,0.2); }
+  .fc-tag {
+    position: absolute; top: 16px; left: 16px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+  }
+  .fc-front .fc-tag { color: var(--text-dim); }
+  .fc-back .fc-tag { color: var(--accent); }
+  .fc-number {
+    position: absolute; top: 16px; right: 16px;
+    font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace;
+  }
+  .fc-q { font-size: clamp(15px, 3vw, 18px); font-weight: 600; line-height: 1.5; color: var(--text); }
+  .fc-a { font-size: clamp(13px, 2.5vw, 15px); line-height: 1.8; color: var(--text-muted); }
+  .flip-hint { text-align: center; font-size: 12px; color: var(--text-dim); font-family: 'DM Mono', monospace; margin-bottom: 1.2rem; }
+
+  /* Nav buttons */
+  .nav-row { display: flex; gap: 10px; }
+  .nav-btn {
+    flex: 1; padding: 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--border-hover); background: var(--surface2); }
+  .nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .shuffle-btn {
+    padding: 14px 20px; border-radius: var(--radius-sm);
+    border: 1px solid rgba(200,245,90,0.25); background: var(--accent-glow);
+    color: var(--accent); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .shuffle-btn:hover { background: rgba(200,245,90,0.22); }
+
+  /* MCQ */
+  .score-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem;
+  }
+  .score-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 14px 16px; text-align: center;
+  }
+  .score-card .val { font-size: 22px; font-weight: 700; }
+  .score-card .lbl { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .score-card.correct .val { color: var(--green); }
+  .score-card.wrong-sc .val { color: var(--red); }
+  .score-card.total .val { color: var(--text); }
+
+  .mcq-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 12px;
+    animation: slideIn 0.3s ease both;
+  }
+  @keyframes slideIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+  .mcq-item:nth-child(n) { animation-delay: calc(n * 0.04s); }
+  .mcq-num { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .mcq-q { font-size: 15px; font-weight: 600; line-height: 1.6; margin-bottom: 14px; }
+  .option {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); margin-bottom: 8px;
+    cursor: pointer; font-size: 13px; line-height: 1.5; color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .option:hover:not(.locked) { border-color: var(--border-hover); color: var(--text); background: var(--surface2); }
+  .opt-key {
+    min-width: 22px; height: 22px; border-radius: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace;
+    color: var(--text-dim); flex-shrink: 0; margin-top: 1px;
+    transition: all 0.15s;
+  }
+  .option.correct { border-color: var(--green); background: var(--green-bg); color: var(--text); }
+  .option.correct .opt-key { background: var(--green); border-color: var(--green); color: #000; }
+  .option.wrong { border-color: var(--red); background: var(--red-bg); color: var(--text); }
+  .option.wrong .opt-key { background: var(--red); border-color: var(--red); color: #fff; }
+  .option.reveal-correct { border-color: rgba(76,222,138,0.4); background: rgba(76,222,138,0.06); }
+  .option.reveal-correct .opt-key { border-color: var(--green); color: var(--green); }
+  .explanation {
+    margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
+    font-size: 13px; line-height: 1.7; font-family: 'DM Mono', monospace;
+    display: none; animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .explanation.show { display: block; }
+  .explanation.ok { background: var(--green-bg); border-left: 2px solid var(--green); color: var(--green); }
+  .explanation.bad { background: var(--red-bg); border-left: 2px solid var(--red); color: #ff9a9a; }
+
+  .reset-btn {
+    display: block; width: 100%; margin-top: 1.5rem; padding: 14px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted);
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .reset-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+  .section { display: none; }
+  .section.active { display: block; }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="app">
+  <header>
+    <div class="badge"><span></span>Machine Learning</div>
+    <h1>Study <em>Smarter</em>,<br>Not Harder.</h1>
+    <p class="subtitle">// 15 flashcards · 20 MCQs · built from your notes</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('fc')">
+      <span class="tab-icon">⬜</span> Flashcards
+    </button>
+    <button class="tab" onclick="switchTab('mcq')">
+      <span class="tab-icon">◎</span> MCQ Quiz
+    </button>
+  </div>
+
+  <!-- FLASHCARDS -->
+  <div id="fc-section" class="section active">
+    <div class="progress-row">
+      <span class="progress-label" id="fc-counter">Card 1 of 15</span>
+      <span class="progress-label" id="fc-pct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="fc-prog" style="width:6.67%"></div></div>
+
+    <div class="fc-scene" onclick="flipCard()">
+      <div class="fc-inner" id="fc-inner">
+        <div class="fc-face fc-front">
+          <div class="fc-tag">Question</div>
+          <div class="fc-number" id="fc-num">01</div>
+          <div class="fc-q" id="fc-q"></div>
+        </div>
+        <div class="fc-face fc-back">
+          <div class="fc-tag">Answer</div>
+          <div class="fc-a" id="fc-a"></div>
+        </div>
+      </div>
+    </div>
+    <div class="flip-hint">↻ tap card to flip</div>
+
+    <div class="nav-row">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">← Prev</button>
+      <button class="shuffle-btn" onclick="shuffleCards()" title="Shuffle">⇄</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next →</button>
+    </div>
+  </div>
+
+  <!-- MCQ -->
+  <div id="mcq-section" class="section">
+    <div class="score-strip">
+      <div class="score-card correct"><div class="val" id="s-correct">0</div><div class="lbl">Correct</div></div>
+      <div class="score-card wrong-sc"><div class="val" id="s-wrong">0</div><div class="lbl">Wrong</div></div>
+      <div class="score-card total"><div class="val" id="s-total">0/10</div><div class="lbl">Answered</div></div>
+    </div>
+    <div id="mcq-list"></div>
+    <button class="reset-btn" onclick="resetMCQ()">↺ Reset Quiz</button>
+  </div>
+</div>
+
+<script>
+const cards = [
+  { q: "What is Machine Learning?", a: "A field of CS that uses statistical techniques to enable systems to learn from data without being explicitly programmed." },
+  { q: "What is the core idea of Machine Learning?", a: "Learn patterns from data, then use those patterns to make accurate predictions on new, unseen data." },
+  { q: "What are the 3 steps of the ML process?", a: "1. Provide data (input + output) → 2. Algorithm finds patterns → 3. Model predicts new outputs." },
+  { q: "How does traditional programming differ from ML?", a: "Traditional: Input + Program → Output (manual logic). ML: Data + Algorithm → Model (learned, adaptive logic)." },
+  { q: "Name all 7 stages of the ML Life Cycle.", a: "Data Collection → Preprocessing → Analysis → Feature Selection → Model Training → Evaluation → Deployment." },
+  { q: "What is the Bias-Variance trade-off?", a: "Balancing underfitting (high bias, too simple) and overfitting (high variance, too tailored to training data)." },
+  { q: "What is the hierarchy of AI, ML, and DL?", a: "AI ⊃ ML ⊃ Deep Learning. DL is a subset of ML, which is a subset of the broader field of AI." },
+  { q: "How does Deep Learning differ from ML in feature engineering?", a: "ML requires manual feature engineering. DL automatically extracts hierarchical features through neural network layers." },
+  { q: "Name 3 situations where ML should be used.", a: "1. Too many rules to code manually. 2. Complex patterns like image recognition. 3. Data mining to find hidden patterns." },
+  { q: "What extra resources does Deep Learning require?", a: "Large datasets and high computational power — typically GPUs or TPUs — to train deep neural networks." },
+  { q: "How do layers work in a Deep Learning model?", a: "First layers detect basic features (edges), middle layers detect complex patterns, final layers achieve high-level understanding." },
+  { q: "What is data preprocessing?", a: "Cleaning raw data and handling missing values (imputation) before feeding it into a model." },
+  { q: "When does ML performance plateau compared to DL?", a: "ML performance plateaus after a certain data volume. DL continues to improve as more data is available." },
+  { q: "What is feature selection?", a: "Identifying and selecting the most important input variables that contribute to accurate model predictions." },
+  { q: "When should you use Traditional AI over ML or DL?", a: "When clear, fixed rules already exist and data is limited — no need to learn from examples." }
+];
+
+const mcqs = [
+  { q: "Which best describes Machine Learning?", opts: ["Writing explicit rules for every scenario", "Using statistical techniques to learn from data", "Programming fixed behavior into a system", "Manually coding decision trees"], ans: 1, exp: "ML uses statistical techniques to let systems learn from data — no explicit rule-writing required." },
+  { q: "In traditional programming, what produces the output?", opts: ["A trained model", "An algorithm finding patterns", "A manually written program", "A neural network"], ans: 2, exp: "Traditional programming: Input + Program → Output. The logic is written manually by the developer." },
+  { q: "Which is NOT a stage in the ML Life Cycle?", opts: ["Feature Selection", "Model Deployment", "Hardware Manufacturing", "Data Preprocessing"], ans: 2, exp: "Hardware Manufacturing is not an ML lifecycle stage. The 7 stages go from Data Collection to Deployment." },
+  { q: "What does 'overfitting' represent in the bias-variance trade-off?", opts: ["High bias, poor performance on training data", "High variance, model over-tailored to training data", "Low complexity that underfits all data", "Perfect generalization to new data"], ans: 1, exp: "Overfitting = high variance. The model memorizes training data and fails to generalize to new inputs." },
+  { q: "What is the correct nesting hierarchy?", opts: ["ML ⊃ AI ⊃ DL", "AI ⊃ DL ⊃ ML", "AI ⊃ ML ⊃ DL", "DL ⊃ ML ⊃ AI"], ans: 2, exp: "AI is broadest, ML is a subset of AI, and Deep Learning is a subset of ML." },
+  { q: "Which is a key advantage of Deep Learning over traditional ML?", opts: ["Requires far less data", "Automatically extracts features", "Needs no GPU or TPU", "Performs best on small datasets"], ans: 1, exp: "DL automatically learns hierarchical features through its layers — unlike ML which needs manual feature engineering." },
+  { q: "Why is spam detection a classic ML use case?", opts: ["The rules are simple and fixed", "It improves automatically with new data", "It requires no data at all", "It only needs 10 lines of code"], ans: 1, exp: "Spam detection is data-driven and improves as more labeled examples are provided — ideal for ML." },
+  { q: "Which task is best suited for Deep Learning?", opts: ["Simple rule-based classification", "Spam detection with clear keywords", "Image recognition across millions of images", "Sorting a list of numbers"], ans: 2, exp: "Image recognition on large datasets is DL's strength — complex patterns, big data, automatic feature extraction." },
+  { q: "What does data imputation address?", opts: ["Selecting important features", "Handling missing values in a dataset", "Deploying a trained model", "Evaluating model accuracy on test data"], ans: 1, exp: "Imputation is a preprocessing technique for filling in missing values in a dataset before model training." },
+  { q: "Which model keeps improving as data grows indefinitely?", opts: ["Traditional AI (rule-based)", "Standard ML", "Deep Learning", "Decision Trees"], ans: 2, exp: "DL performance scales continuously with more data, unlike Traditional AI (constant) or ML (plateaus at some point)." },
+  { q: "What is the primary goal of the Model Evaluation stage in the ML life cycle?", opts: ["Collecting more training data", "Deploying the model to users", "Measuring how well the model performs on unseen data", "Selecting which algorithm to use"], ans: 2, exp: "Model Evaluation checks performance on unseen (test) data to ensure the model generalizes well before deployment." },
+  { q: "Which of the following is an example of data mining?", opts: ["Writing if-else rules for spam", "Finding hidden customer patterns in purchase history", "Manually labelling images", "Deploying a chatbot"], ans: 1, exp: "Data mining extracts hidden patterns not visible through simple analysis — like discovering buying trends from raw purchase data." },
+  { q: "What does 'underfitting' mean in ML?", opts: ["The model memorizes training data perfectly", "The model is too complex for the data", "The model is too simple and misses important patterns", "The model has too many features"], ans: 2, exp: "Underfitting (high bias) happens when a model is too simple to capture the underlying patterns in the data." },
+  { q: "Which component makes up the basic building block of a neural network?", opts: ["A decision tree node", "An artificial neuron", "A feature vector", "A training label"], ans: 1, exp: "Neural networks are built from artificial neurons arranged in multiple layers to learn complex patterns." },
+  { q: "In the ML life cycle, what comes immediately after Data Collection?", opts: ["Feature Selection", "Model Training", "Data Preprocessing", "Model Deployment"], ans: 2, exp: "After collecting data, the next step is Data Preprocessing — cleaning it and handling missing values before analysis." },
+  { q: "Why does ML require domain knowledge?", opts: ["To choose the color scheme of dashboards", "To manually engineer meaningful features for the model", "To write the deployment pipeline", "To select the hardware for training"], ans: 1, exp: "ML's performance depends heavily on feature quality, and selecting meaningful features requires understanding the problem domain." },
+  { q: "What is the role of a training label in supervised ML?", opts: ["It names the algorithm being used", "It is the known output used to teach the model", "It describes the hardware configuration", "It defines the model's architecture"], ans: 1, exp: "In supervised learning, labeled data provides the known output (label) so the algorithm can learn the mapping from input to output." },
+  { q: "Which scenario best justifies using ML instead of traditional programming?", opts: ["Calculating the sum of two numbers", "Sorting a fixed list alphabetically", "Classifying thousands of handwritten digits", "Displaying a static webpage"], ans: 2, exp: "Handwriting classification has too many variations to code manually — ML learns the patterns directly from labeled examples." },
+  { q: "What happens to a Deep Learning model's performance as computational resources decrease significantly?", opts: ["It improves due to less noise", "It stays the same — DL is resource-independent", "Training slows or fails because DL requires high compute power", "It automatically switches to traditional ML"], ans: 2, exp: "Deep Learning requires high computational power (GPU/TPU). Without it, training large neural networks becomes impractically slow or impossible." },
+  { q: "Which of these is NOT a limitation of traditional Machine Learning?", opts: ["Requires manual feature engineering", "Needs domain knowledge to define features", "Performance depends on feature quality", "Automatically extracts features from raw data"], ans: 3, exp: "Automatic feature extraction is a strength of Deep Learning, not traditional ML. ML limitations include manual engineering and domain dependency." }
+];
+
+let fcIndex = 0;
+let isFlipped = false;
+let fcOrder = cards.map((_,i) => i);
+let correct = 0, wrong = 0, answered = 0;
+let mcqState = Array(mcqs.length).fill(null);
+
+function renderCard() {
+  const idx = fcOrder[fcIndex];
+  document.getElementById('fc-inner').classList.remove('flipped');
+  isFlipped = false;
+  document.getElementById('fc-q').textContent = cards[idx].q;
+  document.getElementById('fc-a').textContent = cards[idx].a;
+  const n = fcIndex + 1;
+  document.getElementById('fc-counter').textContent = `Card ${n} of ${cards.length}`;
+  document.getElementById('fc-num').textContent = String(n).padStart(2,'0');
+  const pct = Math.round(n / cards.length * 100);
+  document.getElementById('fc-pct').textContent = pct + '%';
+  document.getElementById('fc-prog').style.width = pct + '%';
+  document.getElementById('prev-btn').disabled = fcIndex === 0;
+  document.getElementById('next-btn').disabled = fcIndex === cards.length - 1;
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('fc-inner').classList.toggle('flipped', isFlipped);
+}
+
+function navigate(dir) {
+  fcIndex = Math.max(0, Math.min(cards.length - 1, fcIndex + dir));
+  renderCard();
+}
+
+function shuffleCards() {
+  for (let i = fcOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [fcOrder[i], fcOrder[j]] = [fcOrder[j], fcOrder[i]];
+  }
+  fcIndex = 0;
+  renderCard();
+}
+
+function renderMCQ() {
+  const list = document.getElementById('mcq-list');
+  list.innerHTML = '';
+  mcqs.forEach((item, qi) => {
+    const div = document.createElement('div');
+    div.className = 'mcq-item';
+    const state = mcqState[qi];
+    const opts = item.opts.map((opt, oi) => {
+      let cls = 'option';
+      if (state !== null) {
+        cls += ' locked';
+        if (oi === item.ans) cls += oi === state ? ' correct' : ' reveal-correct';
+        else if (oi === state) cls += ' wrong';
+      }
+      return `<div class="${cls}" onclick="pick(${qi},${oi})">
+        <span class="opt-key">${String.fromCharCode(65+oi)}</span>
+        <span>${opt}</span>
+      </div>`;
+    }).join('');
+    const expShow = state !== null ? 'show' : '';
+    const expType = state !== null ? (state === item.ans ? 'ok' : 'bad') : '';
+    const expText = state !== null ? (state === item.ans ? '✓ Correct — ' : '✗ Wrong — ') + item.exp : '';
+    div.innerHTML = `
+      <div class="mcq-num">Question ${qi+1} of 20</div>
+      <div class="mcq-q">${item.q}</div>
+      ${opts}
+      <div class="explanation ${expShow} ${expType}">${expText}</div>
+    `;
+    list.appendChild(div);
+  });
+  document.getElementById('s-correct').textContent = correct;
+  document.getElementById('s-wrong').textContent = wrong;
+  document.getElementById('s-total').textContent = answered + '/20';
+}
+
+function pick(qi, oi) {
+  if (mcqState[qi] !== null) return;
+  mcqState[qi] = oi;
+  answered++;
+  if (oi === mcqs[qi].ans) correct++;
+  else wrong++;
+  renderMCQ();
+}
+
+function resetMCQ() {
+  mcqState = Array(mcqs.length).fill(null);
+  correct = 0; wrong = 0; answered = 0;
+  renderMCQ();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='fc')||(i===1&&tab==='mcq')));
+  document.getElementById('fc-section').classList.toggle('active', tab==='fc');
+  document.getElementById('mcq-section').classList.toggle('active', tab==='mcq');
+}
+
+renderCard();
+renderMCQ();
+</script>
+</body>
+</html>
